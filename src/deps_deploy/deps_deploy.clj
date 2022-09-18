@@ -66,10 +66,7 @@
   [(symbol (str group-id "/" artifact-id)) version])
 
 (defn sign! [pom jar-file sign-key-id]
-  (let [passphrase (gpg/read-passphrase)
-        sign-op! (if sign-key-id
-                   (partial gpg/sign-with-key! sign-key-id)
-                   (partial gpg/sign! passphrase))]
+  (let [sign-op! (partial gpg/sign-with-key! sign-key-id)]
     [(sign-op! pom) (sign-op! jar-file)]))
 
 (defn artifacts [version files]
@@ -159,7 +156,7 @@
                        (println k "has value" v "which is an unknown :mvn/repos")
                        opts))
                    :else opts))
-               options
+               (merge {:sign-releases? true} options)
                options)))
 
 (defmulti deploy* :installer)
@@ -209,9 +206,7 @@
   :pom-file   defaults to \"pom.xml\"
 
   :sign-releases?  A boolean that specifies whether releases should be
-                   signed
-
-  "
+                   signed, default is true"
   [options]
   (let [{:keys [pom-file sign-releases? sign-key-id artifact] :as opts} (preprocess-options options)
         pom (slurp (dir/canonicalize (io/file (or pom-file "pom.xml"))))
@@ -223,7 +218,7 @@
       (deploy*
        (assoc opts
               :artifact-map (all-artifacts sign-releases? coordinates artifact sign-key-id)
-              :coordinates coordinates))
+              :coordinates coordinates) )
       (finally
         (.delete (java.io.File. (versioned-pom-filename coordinates)))))))
 
